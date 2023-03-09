@@ -7,5 +7,6 @@ const farmController = new FarmsController();
 
 router.post("/", authenticate, farmController.create.bind(farmController) as RequestHandler);
 router.get("/", authenticate, farmController.findFarms.bind(farmController) as RequestHandler);
+router.delete("/:farmId", authenticate, farmController.deleteFarm.bind(farmController) as RequestHandler);
 
 export default router;

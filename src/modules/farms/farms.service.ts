@@ -2,9 +2,11 @@ import dataSource from "orm/orm.config";
 import { Farm } from "./entities/farm.entity";
 import { CreateFarmInputDto } from "./dto/create-farm.dto";
 import { FarmListOutputDto, FindFarmsInputDto } from "./dto/find-farms.dto";
-import { UnprocessableEntityError } from "errors/errors";
+import { NotFoundError, UnprocessableEntityError } from "errors/errors";
 import { UsersService } from "modules/users/users.service";
 import { Not } from "typeorm";
+import { DeleteFarmInputDto } from "./dto/delete-farm.dto";
+import { transformAndValidate } from "helpers/validate";
 
 export class FarmService {
   constructor(
@@ -13,7 +15,15 @@ export class FarmService {
   ) {}
 
   public async createFarm(createFarmDto: CreateFarmInputDto) {
-    const { name, yield: farmYield, size, lat, long, address, userId } = createFarmDto;
+    const { 
+      name, 
+      yield: farmYield, 
+      size, 
+      lat, 
+      long, 
+      address, 
+      userId 
+    } = await transformAndValidate(createFarmDto, CreateFarmInputDto);
 
     const user = await this.userService.findOneBy({ id: userId });
 
@@ -35,29 +45,24 @@ export class FarmService {
   }
 
   public async findMany(findFarmsDto: FindFarmsInputDto) {
-    const [errors] = await FindFarmsInputDto.validate(findFarmsDto);
-
-    if (errors) {
-      throw new UnprocessableEntityError("Input validation errors.");
-    }
-
-    const { sortBy, outliers, userId } = findFarmsDto;
+    const { sortBy, outliers, userId } = await transformAndValidate(findFarmsDto, FindFarmsInputDto);
 
     const user = await this.userService.findOneBy({ id: userId });
 
     if (!user) {
-      throw new Error("User not found");
+      throw new UnprocessableEntityError("User not found");
     }
 
     const farmQueryBuilder = this.farmRepository.createQueryBuilder("farm");
 
     farmQueryBuilder.select([
-      "farm.name as name", 
-      "farm.yield as yield", 
-      "farm.userId as userId", 
-      "farm.address as address", 
-      "farm.lat as lat", 
-      "farm.long as long"
+      "farm.id as id",
+      "farm.name as name",
+      "farm.yield as yield",
+      "farm.userId as userId",
+      "farm.address as address",
+      "farm.lat as lat",
+      "farm.long as long",
     ]);
 
     // Get farms that don't belong to current user
@@ -73,8 +78,8 @@ export class FarmService {
       );
       farmQueryBuilder.setParameters({
         userLat: user.lat,
-        userLong: user.long
-      })
+        userLong: user.long,
+      });
     }
 
     // Get outliers
@@ -95,8 +100,18 @@ export class FarmService {
 
     const entities = await farmQueryBuilder.getRawMany();
 
-    return entities.map(entity => ({ ...entity, owner: user.email } as FarmListOutputDto)); 
+    return entities.map(entity => ({ ...entity, owner: user.email } as FarmListOutputDto));
+  }
 
+  public async deleteFarm(deleteInput: DeleteFarmInputDto) {
+    const { userId, farmId } = await transformAndValidate(deleteInput, DeleteFarmInputDto);
+    const result = await this.farmRepository.delete({ id: farmId, user: { id: userId } });
+
+    if (result.affected === 1) {
+      return true;
+    }
+
+    throw new NotFoundError("Farm not found!");
   }
 
   private getSortOption(sortBy?: FindFarmsInputDto["sortBy"]) {
