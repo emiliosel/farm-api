@@ -14,14 +14,14 @@ export class UsersService {
   }
 
   public async createUser(data: CreateUserDto): Promise<User> {
-    const { email, password } = data;
+    const { email, password, lat, long, address } = data;
 
     const existingUser = await this.findOneBy({ email: email });
     if (existingUser) throw new UnprocessableEntityError("A user for the email already exists");
 
     const hashedPassword = await this.hashPassword(password);
 
-    const userData: DeepPartial<User> = { email, hashedPassword };
+    const userData: DeepPartial<User> = { email, hashedPassword, address, lat, long };
 
     const newUser = this.usersRepository.create(userData);
     return this.usersRepository.save(newUser);
