@@ -2,12 +2,13 @@ import * as bcrypt from "bcrypt";
 import config from "config/config";
 import { fromUnixTime } from "date-fns";
 import { UnprocessableEntityError } from "errors/errors";
-import { decode, sign } from "jsonwebtoken";
+import { decode, sign, verify } from "jsonwebtoken";
 import { UsersService } from "modules/users/users.service";
 import { Repository } from "typeorm";
 import { LoginUserDto } from "./dto/login-user.dto";
 import { AccessToken } from "./entities/access-token.entity";
 import dataSource from "orm/orm.config";
+import { TokenData } from "./dto/auth-user.dto";
 
 export class AuthService {
   private readonly accessTokenRepository: Repository<AccessToken>;
@@ -44,6 +45,11 @@ export class AuthService {
     });
 
     return this.accessTokenRepository.save(newToken);
+  }
+
+  public verifyToken(token: string) {
+    const decodedToken = verify(token, config.JWT_SECRET) as TokenData;
+    return decodedToken.user;
   }
 
   private getJwtTokenExpireDate(token: string): number {
