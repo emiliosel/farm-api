@@ -1,5 +1,5 @@
-import { Transform, plainToInstance } from "class-transformer";
-import { IsBoolean, IsEnum, IsOptional, IsUUID, validate } from "class-validator";
+import { Transform } from "class-transformer";
+import { IsBoolean, IsEnum, IsOptional, IsUUID } from "class-validator";
 
 export enum FarmSortByEnum {
   Name = "name",
@@ -20,26 +20,6 @@ export class FindFarmsInputDto {
   @IsUUID()
   public userId: string;
 
-  public static async validate(obj: object): Promise<[string, null] | [null, FindFarmsInputDto]> {
-    const instance = plainToInstance(FindFarmsInputDto, obj);
-    console.log({ instance });
-    const result = await validate(instance, {
-      whitelist: true,
-    });
-
-    const errors = result && result.length ? result.map(er => er.constraints) : null;
-
-    if (errors) {
-      const errStr = errors
-        .filter(exist => exist)
-        .map((err: { [type: string]: string }) => Object.values(err).join("\n"))
-        .flat()
-        .join("\n");
-      return [errStr, null];
-    }
-
-    return [null, obj as FindFarmsInputDto];
-  }
 }
 
 export type FarmListOutputDto = {

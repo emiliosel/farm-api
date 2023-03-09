@@ -1,4 +1,4 @@
-import { IsInt, IsNumber, IsString, IsUUID } from "class-validator"
+import { IsNumber, IsString, IsUUID } from "class-validator"
 
 export class CreateFarmInputDto {
   @IsString()
@@ -13,10 +13,10 @@ export class CreateFarmInputDto {
   @IsNumber()
   public size: number;
 
-  @IsInt()
+  @IsNumber()
   public lat: number;
 
-  @IsInt()
+  @IsNumber()
   public long: number;
 
   @IsUUID()
