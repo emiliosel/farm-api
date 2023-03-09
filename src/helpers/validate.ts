@@ -15,7 +15,7 @@ export async function transformAndValidate<T>(input: unknown, dtoClass: new () =
       return error.toString();
     });
 
-    throw new UnprocessableEntityError(readableErrors.join("\n"));
+    throw new UnprocessableEntityError(readableErrors.join("\n "));
   }
   return dtoObject;
 }

@@ -8,7 +8,7 @@ import { Repository } from "typeorm";
 import { LoginUserDto } from "./dto/login-user.dto";
 import { AccessToken } from "./entities/access-token.entity";
 import dataSource from "orm/orm.config";
-import { TokenData } from "./dto/auth-user.dto";
+import { TokenUser } from "./dto/auth-user.dto";
 
 export class AuthService {
   private readonly accessTokenRepository: Repository<AccessToken>;
@@ -48,8 +48,7 @@ export class AuthService {
   }
 
   public verifyToken(token: string) {
-    const decodedToken = verify(token, config.JWT_SECRET) as TokenData;
-    return decodedToken.user;
+    return verify(token, config.JWT_SECRET) as TokenUser;
   }
 
   private getJwtTokenExpireDate(token: string): number {
