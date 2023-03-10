@@ -24,6 +24,7 @@ export enum GoogleApiErrorsEnum {
 export async function findLatLngFromAddress(address: string) {
   const encodedAddress = encodeURIComponent(address);
   const apiKey = config.GOOGLE_MAPS_API_KEY;
+  console.log({ apiKey });
   const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodedAddress}&key=${apiKey}`;
 
   const response = await fetch(url);
@@ -42,13 +43,17 @@ export async function findLatLngFromAddress(address: string) {
     return [GoogleApiErrorsEnum.DataNotFound] as [GoogleApiErrorsEnum.DataNotFound];
   }
 
-  return [
-    null, 
-    apiData.results[0].geometry.location
-  ] as [
-    null, 
-    GoogleMapsApiLatLngResponse["results"][0]["geometry"]["location"]
-  ];
+  try {
+    return [
+      null, 
+      apiData.results[0].geometry.location
+    ] as [
+      null, 
+      GoogleMapsApiLatLngResponse["results"][0]["geometry"]["location"]
+    ];
+  } catch (er) {
+    return [GoogleApiErrorsEnum.DataNotFound] as [GoogleApiErrorsEnum.DataNotFound];
+  }
 }
 
 interface GoogleMapsApiDistanceResponse {
@@ -86,7 +91,12 @@ export async function findDrivingDistance(origin: { lat: number; lng: number }, 
     return [GoogleApiErrorsEnum.DataNotFound] as [GoogleApiErrorsEnum.DataNotFound];
   }
 
-  const distance = apiData.rows[0].elements[0].distance.value;
+  try {
+    const distance = apiData.rows[0].elements[0].distance.value;
 
-  return [null, distance] as [null, number];
+    return [null, distance] as [null, number];
+
+  } catch (er) {
+    return [GoogleApiErrorsEnum.DataNotFound] as [GoogleApiErrorsEnum.DataNotFound];
+  }
 }
