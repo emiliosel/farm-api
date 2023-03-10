@@ -28,8 +28,8 @@ export class FarmsController {
   public async findFarms(req: Request, res: Response, next: NextFunction) {
     try {
       const farm = await this.farmsService.findMany({
-        userId: req.user?.id,
         ...req.query,
+        userId: req.user?.id,
       } as FindFarmsInputDto);
 
       res.status(200).send(farm);

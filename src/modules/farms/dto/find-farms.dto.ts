@@ -28,6 +28,9 @@ export class FarmListOutputDto {
   }
 
   @Expose()
+  public id: string;
+
+  @Expose()
   public name: string;
 
   @Expose()

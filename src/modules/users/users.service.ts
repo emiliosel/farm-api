@@ -5,14 +5,16 @@ import { DeepPartial, FindOptionsWhere, Repository } from "typeorm";
 import { CreateUserDto } from "./dto/create-user.dto";
 import { User } from "./entities/user.entity";
 import dataSource from "orm/orm.config";
-import { GoogleApiErrorsEnum, findLatLngFromAddress } from "helpers/geo.service";
+import { GeoService, GoogleApiErrorsEnum } from "helpers/geo.service";
 import { transformInputAndValidate } from "helpers/validate";
 
 export class UsersService {
   private readonly usersRepository: Repository<User>;
+  private readonly geoService: GeoService;
 
   constructor() {
     this.usersRepository = dataSource.getRepository(User);
+    this.geoService = new GeoService();
   }
 
   public async createUser(data: CreateUserDto): Promise<User> {
@@ -20,7 +22,7 @@ export class UsersService {
 
     const { email, password, address } = createUserDto;
 
-    const [error, result] = await findLatLngFromAddress(address);
+    const [error, result] = await this.geoService.findLatLngFromAddress(address);
 
     if (error === GoogleApiErrorsEnum.ApiError) {
       throw new Error("Some api error occured")

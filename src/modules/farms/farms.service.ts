@@ -1,19 +1,20 @@
 import dataSource from "orm/orm.config";
 import { Farm } from "./entities/farm.entity";
-import { CreateFarmInputDto } from "./dto/create-farm.dto";
+import { CreateFarmInputDto, CreateFarmOutputDto } from "./dto/create-farm.dto";
 import { FarmListOutputDto, FindFarmsInputDto } from "./dto/find-farms.dto";
-import { NotFoundError, UnprocessableEntityError } from "errors/errors";
+import { NotAuthorizedError, NotFoundError, UnprocessableEntityError } from "errors/errors";
 import { UsersService } from "modules/users/users.service";
 import { Not } from "typeorm";
 import { DeleteFarmInputDto } from "./dto/delete-farm.dto";
-import { transformInputAndValidate } from "helpers/validate";
-import { GoogleApiErrorsEnum, findDrivingDistance, findLatLngFromAddress } from "helpers/geo.service";
+import { transformInputAndValidate, transformOutput } from "helpers/validate";
+import { GeoService, GoogleApiErrorsEnum } from "helpers/geo.service";
 import { User } from "modules/users/entities/user.entity";
 
 export class FarmService {
   constructor(
     private readonly farmRepository = dataSource.getRepository(Farm),
     private readonly userService = new UsersService(),
+    private readonly geoService = new GeoService()
   ) {}
 
   public async createFarm(createFarmDto: CreateFarmInputDto) {
@@ -31,7 +32,7 @@ export class FarmService {
       throw new UnprocessableEntityError("User not found");
     }
 
-    const [error, result] = await findLatLngFromAddress(address);
+    const [error, result] = await this.geoService.findLatLngFromAddress(address);
 
     if (error === GoogleApiErrorsEnum.ApiError) {
       throw new Error("Some api error occured");
@@ -53,10 +54,13 @@ export class FarmService {
       user,
     });
 
-    return this.farmRepository.save(farm);
+    const createdFarm = await this.farmRepository.save(farm);
+
+    return transformOutput(createdFarm, CreateFarmOutputDto);
   }
 
   public async findMany(findFarmsDto: FindFarmsInputDto) {
+
     const { sortBy, outliers, userId } = await transformInputAndValidate(findFarmsDto, FindFarmsInputDto);
 
     const user = await this.userService.findOneBy({ id: userId });
@@ -72,7 +76,7 @@ export class FarmService {
       "farm.name as name",
       "farm.yield as yield",
       "farm.size as size",
-      "farm.userId as userId",
+      "user.email as owner",
       "farm.address as address",
       "farm.lat as lat",
       "farm.long as long",
@@ -107,6 +111,8 @@ export class FarmService {
       });
     }
 
+    farmQueryBuilder.innerJoin("farm.user", "user")
+
     // Sort results
     const sort = this.getSortOption(sortBy);
     farmQueryBuilder.orderBy({ [sort.field]: sort.type });
@@ -124,13 +130,24 @@ export class FarmService {
 
   public async deleteFarm(deleteInput: DeleteFarmInputDto) {
     const { userId, farmId } = await transformInputAndValidate(deleteInput, DeleteFarmInputDto);
-    const result = await this.farmRepository.delete({ id: farmId, user: { id: userId } });
 
-    if (result.affected === 1) {
-      return true;
+    const farm = await this.farmRepository.findOne({
+      where: { id: farmId },
+      relations: { user: true },
+      select: { id: true, user: { id: true } },
+    });
+
+    if (!farm) {
+      throw new NotFoundError("Farm not found!");
     }
 
-    throw new NotFoundError("Farm not found!");
+    if (farm.user.id !== userId) {
+      throw new NotAuthorizedError("Farm belongs to another user!");
+    }
+
+    const result = await this.farmRepository.delete({ id: farmId, user: { id: userId } });
+
+    return result.affected === 1;
   }
 
   private async findDrivingDistance(farm: Omit<FarmListOutputDto, "owner">, user: User) {
@@ -145,13 +162,12 @@ export class FarmService {
       lng: farm.long
     }
 
-    const [error, apiDistanceResult] = await findDrivingDistance(origin, destination);
+    const [error, apiDistanceResult] = await this.geoService.findDrivingDistance(origin, destination);
 
     const drivingDistance = error === null ? apiDistanceResult : farm.distance
 
     return new FarmListOutputDto({ 
       ...farm, 
-      owner: user.email,
       drivingDistance
     }).expose()
   }
