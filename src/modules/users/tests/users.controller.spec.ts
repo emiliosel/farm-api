@@ -36,7 +36,11 @@ describe("UsersController", () => {
   });
 
   describe("POST /users", () => {
-    const createUserDto: CreateUserDto = { email: "user@test.com", password: "password" };
+    const createUserDto: CreateUserDto = {
+      email: "user@test.com",
+      password: "password",
+      address: "6007 Applegate Lane Louisville,  40219 KY, USA",
+    };
 
     it("should create new user", async () => {
       const res = await agent.post("/api/users").send(createUserDto);
