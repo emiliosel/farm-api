@@ -13,12 +13,6 @@ export class CreateFarmInputDto {
   @IsNumber()
   public size: number;
 
-  @IsNumber()
-  public lat: number;
-
-  @IsNumber()
-  public long: number;
-
   @IsUUID()
   public userId: string;
 }

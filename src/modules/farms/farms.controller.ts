@@ -32,7 +32,7 @@ export class FarmsController {
         ...req.query,
       } as FindFarmsInputDto);
 
-      res.status(201).send(farm);
+      res.status(200).send(farm);
     } catch (error) {
       next(error);
     }
@@ -40,12 +40,12 @@ export class FarmsController {
 
   public async deleteFarm(req: Request, res: Response, next: NextFunction) {
     try {
-      const farm = await this.farmsService.deleteFarm({
+      const deleted = await this.farmsService.deleteFarm({
         userId: req.user?.id,
         farmId: req.params.farmId,
       } as DeleteFarmInputDto);
 
-      res.status(201).send(farm);
+      res.status(200).send({ deleted });
     } catch (error) {
       next(error);
     }

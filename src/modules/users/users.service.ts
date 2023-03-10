@@ -6,6 +6,7 @@ import { CreateUserDto } from "./dto/create-user.dto";
 import { User } from "./entities/user.entity";
 import dataSource from "orm/orm.config";
 import { GoogleApiErrorsEnum, findLatLngFromAddress } from "helpers/geo.service";
+import { transformInputAndValidate } from "helpers/validate";
 
 export class UsersService {
   private readonly usersRepository: Repository<User>;
@@ -15,7 +16,9 @@ export class UsersService {
   }
 
   public async createUser(data: CreateUserDto): Promise<User> {
-    const { email, password, address } = data;
+    const createUserDto = await transformInputAndValidate(data, CreateUserDto);
+
+    const { email, password, address } = createUserDto;
 
     const [error, result] = await findLatLngFromAddress(address);
 

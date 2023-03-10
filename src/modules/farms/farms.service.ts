@@ -6,8 +6,8 @@ import { NotFoundError, UnprocessableEntityError } from "errors/errors";
 import { UsersService } from "modules/users/users.service";
 import { Not } from "typeorm";
 import { DeleteFarmInputDto } from "./dto/delete-farm.dto";
-import { transformAndValidate } from "helpers/validate";
-import { findDrivingDistance } from "helpers/geo.service";
+import { transformInputAndValidate } from "helpers/validate";
+import { GoogleApiErrorsEnum, findDrivingDistance, findLatLngFromAddress } from "helpers/geo.service";
 import { User } from "modules/users/entities/user.entity";
 
 export class FarmService {
@@ -21,17 +21,27 @@ export class FarmService {
       name, 
       yield: farmYield, 
       size, 
-      lat, 
-      long, 
       address, 
       userId 
-    } = await transformAndValidate(createFarmDto, CreateFarmInputDto);
+    } = await transformInputAndValidate(createFarmDto, CreateFarmInputDto);
 
     const user = await this.userService.findOneBy({ id: userId });
 
     if (!user) {
       throw new UnprocessableEntityError("User not found");
     }
+
+    const [error, result] = await findLatLngFromAddress(address);
+
+    if (error === GoogleApiErrorsEnum.ApiError) {
+      throw new Error("Some api error occured");
+    }
+
+    if (error === GoogleApiErrorsEnum.DataNotFound) {
+      throw new UnprocessableEntityError("Could not find latitude and longitude for the address given");
+    }
+
+    const { lat, lng: long } = result;
 
     const farm = this.farmRepository.create({
       name,
@@ -47,7 +57,7 @@ export class FarmService {
   }
 
   public async findMany(findFarmsDto: FindFarmsInputDto) {
-    const { sortBy, outliers, userId } = await transformAndValidate(findFarmsDto, FindFarmsInputDto);
+    const { sortBy, outliers, userId } = await transformInputAndValidate(findFarmsDto, FindFarmsInputDto);
 
     const user = await this.userService.findOneBy({ id: userId });
 
@@ -113,7 +123,7 @@ export class FarmService {
   }
 
   public async deleteFarm(deleteInput: DeleteFarmInputDto) {
-    const { userId, farmId } = await transformAndValidate(deleteInput, DeleteFarmInputDto);
+    const { userId, farmId } = await transformInputAndValidate(deleteInput, DeleteFarmInputDto);
     const result = await this.farmRepository.delete({ id: farmId, user: { id: userId } });
 
     if (result.affected === 1) {
