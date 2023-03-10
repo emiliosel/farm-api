@@ -7,6 +7,8 @@ import { UsersService } from "modules/users/users.service";
 import { Not } from "typeorm";
 import { DeleteFarmInputDto } from "./dto/delete-farm.dto";
 import { transformAndValidate } from "helpers/validate";
+import { findDrivingDistance } from "helpers/geo.service";
+import { User } from "modules/users/entities/user.entity";
 
 export class FarmService {
   constructor(
@@ -59,6 +61,7 @@ export class FarmService {
       "farm.id as id",
       "farm.name as name",
       "farm.yield as yield",
+      "farm.size as size",
       "farm.userId as userId",
       "farm.address as address",
       "farm.lat as lat",
@@ -100,7 +103,13 @@ export class FarmService {
 
     const entities = await farmQueryBuilder.getRawMany();
 
-    return entities.map(entity => ({ ...entity, owner: user.email } as FarmListOutputDto));
+    const farmsWithDistance = await Promise.all(
+      entities.map(
+        async (entity: Omit<FarmListOutputDto, "owner">) => this.findDrivingDistance(entity, user)
+      )
+    );
+
+    return farmsWithDistance;
   }
 
   public async deleteFarm(deleteInput: DeleteFarmInputDto) {
@@ -112,6 +121,29 @@ export class FarmService {
     }
 
     throw new NotFoundError("Farm not found!");
+  }
+
+  private async findDrivingDistance(farm: Omit<FarmListOutputDto, "owner">, user: User) {
+
+    const origin = {
+      lat: user.lat,
+      lng: user.long
+    }
+
+    const destination = {
+      lat: farm.lat,
+      lng: farm.long
+    }
+
+    const [error, apiDistanceResult] = await findDrivingDistance(origin, destination);
+
+    const drivingDistance = error === null ? apiDistanceResult : farm.distance
+
+    return new FarmListOutputDto({ 
+      ...farm, 
+      owner: user.email,
+      drivingDistance
+    }).expose()
   }
 
   private getSortOption(sortBy?: FindFarmsInputDto["sortBy"]) {
@@ -127,7 +159,7 @@ export class FarmService {
       },
       distance: {
         field: "distance" as const,
-        type: "DESC" as const,
+        type: "ASC" as const,
       },
       default: {
         field: "farm.createdAt" as const,

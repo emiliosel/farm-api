@@ -5,6 +5,7 @@ import { DeepPartial, FindOptionsWhere, Repository } from "typeorm";
 import { CreateUserDto } from "./dto/create-user.dto";
 import { User } from "./entities/user.entity";
 import dataSource from "orm/orm.config";
+import { GoogleApiErrorsEnum, findLatLngFromAddress } from "helpers/geo.service";
 
 export class UsersService {
   private readonly usersRepository: Repository<User>;
@@ -14,9 +15,22 @@ export class UsersService {
   }
 
   public async createUser(data: CreateUserDto): Promise<User> {
-    const { email, password, lat, long, address } = data;
+    const { email, password, address } = data;
+
+    const [error, result] = await findLatLngFromAddress(address);
+
+    if (error === GoogleApiErrorsEnum.ApiError) {
+      throw new Error("Some api error occured")
+    }
+
+    if (error === GoogleApiErrorsEnum.DataNotFound) {
+      throw new UnprocessableEntityError("Could not find latitude and longitude for the address given");
+    }
+
+    const {lat, lng: long} = result;
 
     const existingUser = await this.findOneBy({ email: email });
+
     if (existingUser) throw new UnprocessableEntityError("A user for the email already exists");
 
     const hashedPassword = await this.hashPassword(password);
@@ -24,6 +38,7 @@ export class UsersService {
     const userData: DeepPartial<User> = { email, hashedPassword, address, lat, long };
 
     const newUser = this.usersRepository.create(userData);
+
     return this.usersRepository.save(newUser);
   }
 

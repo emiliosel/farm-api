@@ -1,4 +1,4 @@
-import { Transform } from "class-transformer";
+import { Expose, Transform, instanceToPlain } from "class-transformer";
 import { IsBoolean, IsEnum, IsOptional, IsUUID } from "class-validator";
 
 export enum FarmSortByEnum {
@@ -22,12 +22,39 @@ export class FindFarmsInputDto {
 
 }
 
-export type FarmListOutputDto = {
-  name: string;
-  yield: string;
-  userId: string;
-  address: string;
-  lat: number;
-  long: number;
-  owner: number;
-};
+export class FarmListOutputDto {
+  constructor(partial?: Partial<FarmListOutputDto>) {
+    Object.assign(this, partial);
+  }
+
+  @Expose()
+  public name: string;
+
+  @Expose()
+  public yield: number;
+
+  @Expose()
+  public size: number;
+
+  @Expose()
+  public userId: string;
+
+  @Expose()
+  public address: string;
+
+  public lat: number;
+
+  public long: number;
+
+  @Expose()
+  public owner: string;
+
+  public distance: number;
+
+  @Expose()
+  public drivingDistance?: number;
+
+  public expose() {
+    return instanceToPlain(this, { strategy: "excludeAll" });
+  }
+}
